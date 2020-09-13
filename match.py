@@ -1,52 +1,57 @@
 """A group generating program."""
 
 import random
+import sys
+import json
 
-size =input("How large should each group be? ")
-fname = input("Enter file name: ")
+groupfile = sys.argv[1]
+historyfile = sys.argv[2]
+groups = []
 
-all = []
-valid = []
-basegroups = {}
-tracker = {}
-
-with open(fname,'r') as f:
+"""Open and read groups."""
+with open(groupfile,'r') as f:
     for line in f:
-        for word in line.split():
-            all.append(word)
-            valid.append(word)
+        groups.append([word.lower() for word in line.split()])
+f.close()
+
+"""Open and read history."""
+with open(historyfile, 'r') as fp:
+    try:
+        history = json.load(fp)
+    except ValueError:
+        history = {}
+fp.close()
+
+"""Check and update history"""
+if history == {}:
+    for group in groups:
+        for person in group:
+            temp = group[:]
+            temp.remove(person)
+            history[person] = temp
+    with open(historyfile, "w") as f:
+        json.dump(history,f)
+    f.close()
+    sys.exit(0)
+
+for group in groups:
+    bad = False
+    for person in group:
+        temp = group[:]
+        temp.remove(person)
+        if person not in history:
+            history[person] = temp
+        else:
+            for others in temp:
+                if others in history[person]:
+                    bad = True
+                    print("FAILED: " + person + " has already been matched with " + others)
+            if bad:
+                sys.exit(1)
+            history[person] += temp
+
+with open(historyfile, "w") as f:
+    json.dump(history,f)
 
 f.close()
-numnames = len(all)
-numgroups = numnames // int(size)
-for elem in all:
-    tracker[elem] = []
-
-for i in range(numgroups):
-    basegroups[i] = []
-    for j in range(int(size)):
-        person = random.choice(valid)
-        basegroups[i].append(person)
-        valid.remove(person)
-
-if numgroups % int(size) != 0:
-    i = 0
-    while len(valid) > 0:
-        person = random.choice(valid)
-        basegroups[i].append(person)
-        valid.remove(person)
-        i += 1
-
-for name in tracker.keys():
-    for group in basegroups.items():
-        if any((i == name) for i in group[1]):
-            tracker[name] += group
-
-results = open("groups.text","w+")
-results.write("Groups 1 \n")
-results.write("GROUP \n")
-for group in basegroups.items():
-     groups = map(lambda x:x+'\n', group[1])
-     results.writelines(groups)
-     results.write("GROUP \n")
-results.close()
+sys.exit(0)
